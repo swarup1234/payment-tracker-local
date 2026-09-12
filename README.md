@@ -4,6 +4,19 @@ A self-hosted payment tracking system for managing customers, subscriptions, and
 
 ---
 
+## Repository
+
+```bash
+gh repo clone swarup1234/payment-tracker-local
+```
+
+Or with plain git:
+```bash
+git clone https://github.com/swarup1234/payment-tracker-local.git
+```
+
+---
+
 ## What's included
 
 | Component | Technology | Purpose |
@@ -12,6 +25,8 @@ A self-hosted payment tracking system for managing customers, subscriptions, and
 | Backend API | Node.js + Express | REST API on port 4000 (internal) |
 | Database | PostgreSQL 16 | Stores all data |
 | Adminer | Web UI | Browse/edit database directly |
+
+> **Note:** the backend API is not exposed directly to your machine — it's only reachable through the frontend's nginx proxy (e.g. `http://localhost:3000/api/health`), not `http://localhost:4000/health` directly. If you need to hit port 4000 from your host machine (e.g. for testing with `curl` or Postman), add a `ports: - "4000:4000"` mapping to the `backend` service in `docker-compose.yml`.
 
 ---
 
@@ -51,8 +66,8 @@ cd ~/Downloads/payment-tracker
 
 If you're cloning from git:
 ```bash
-git clone <repo-url>
-cd payment-tracker
+git clone https://github.com/swarup1234/payment-tracker-local.git
+cd payment-tracker-local
 ```
 
 ### Step 3 — Configure your password
@@ -116,8 +131,8 @@ cd C:\Projects\payment-tracker
 
 If you're cloning from git:
 ```powershell
-git clone <repo-url>
-cd payment-tracker
+git clone https://github.com/swarup1234/payment-tracker-local.git
+cd payment-tracker-local
 ```
 
 ### Step 3 — Configure your password
@@ -163,6 +178,8 @@ Once started, open these URLs in your browser:
 - Username: value of `DB_USER` in your `.env` (default: `postgres`)
 - Password: value of `DB_PASSWORD` in your `.env`
 - Database: `payment_tracker`
+
+**Prefer a desktop DB client instead of Adminer?** Connect tools like TablePlus, DBeaver, or pgAdmin to `localhost:5432` using the same `DB_USER`/`DB_PASSWORD`/`DB_NAME` values from your `.env` — `docker-compose.yml` publishes Postgres's port to your host machine, so any Postgres client works.
 
 ---
 
@@ -235,6 +252,8 @@ Overview of payment activity — pending dues, overdue transactions, and amount 
   - `paytracker_customers_<date>.csv`
   - `paytracker_transactions_<date>.csv`
 
+**Restoring from a backup:** there's no one-click restore yet — to bring data back from these CSVs, open Adminer (http://localhost:8080), select the `customers` or `transactions` table, and use its **Import** function to load the CSV back in. Restore `customers` before `transactions`, since transactions reference customer IDs.
+
 ---
 
 ## Updating to a new version
@@ -250,6 +269,12 @@ docker-compose up -d --build
 ```
 
 This rebuilds the frontend and backend images with your changes. The database and all your data are untouched.
+
+---
+
+## Privacy note
+
+This app stores real customer names, phone numbers, and payment amounts. Even though `.env` (with your DB password) is excluded from git, the codebase itself may end up describing your customer data model closely. **Keep this repository set to Private on GitHub** — double check under repo Settings → General → Danger Zone if you're ever unsure.
 
 ---
 
@@ -363,3 +388,9 @@ payment-tracker/
 - **Razorpay / online payment gateway** — parked for later
 - **SMS reminders** (MSG91/Gupshup) — parked for later
 - **Automated migration tool** — use Adminer for manual schema changes for now
+
+---
+
+## License
+
+Private/internal use only — not licensed for redistribution.
