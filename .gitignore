@@ -1,0 +1,12 @@
+# macOS
+.DS_Store
+
+# Environment secrets - never commit actual values
+.env
+
+# Dependencies (regenerated via npm install)
+**/node_modules/
+
+# Build output
+**/dist/
+**/build/
