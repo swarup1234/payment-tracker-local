@@ -54,9 +54,14 @@ CREATE TABLE notifications_log (
     sent_at         TIMESTAMPTZ DEFAULT now()
 );
 
--- Seed your 4 services so the app has something to work with immediately
+-- Seed default services so the app has something to work with immediately
 INSERT INTO services (name, default_amount, billing_cycle) VALUES
-    ('Service 1', 0, 'monthly'),
-    ('Service 2', 0, 'monthly'),
-    ('Service 3', 0, 'monthly'),
-    ('Service 4', 0, 'monthly');
+    ('Income Tax', 5000, 'monthly'),
+    ('GST', 500, 'monthly'),
+    ('Insurance', 5000, 'quarterly'),
+    ('Other', 5000, 'yearly'),
+    ('Service Name 5', 1000, 'monthly'),
+    ('Service Name 6', 2000, 'monthly'),
+    ('Service Name 7', 3000, 'quarterly'),
+    ('Service Name 8', 4000, 'yearly'),
+    ('Service Name 9', 5000, 'monthly');
