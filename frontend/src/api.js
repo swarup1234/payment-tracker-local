@@ -1,7 +1,10 @@
 // All requests go through /api which Vite proxies to http://localhost:4000
+// PREPENDS LIVE BACKEND URL (OR DEFAULTS TO RELATIVE FOR LOCAL DEV)
+const API_BASE = import.meta.env.VITE_API_URL || 'https://payment-tracker-backend-cjct.onrender.com';
 
 async function request(path, options = {}) {
-  const url = `/api${path}`
+  //const url = `/api${path}`
+  const url = `${API_BASE}${path}`
   const res = await fetch(url, {
     headers: { 'Content-Type': 'application/json', ...options.headers },
     ...options,
