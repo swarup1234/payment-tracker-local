@@ -10,3 +10,6 @@
 # Build output
 **/dist/
 **/build/
+
+# MD documentation folder
+MD/

@@ -1,20 +1,51 @@
-// All requests go through /api which Vite proxies to http://localhost:4000
-// PREPENDS LIVE BACKEND URL (OR DEFAULTS TO RELATIVE FOR LOCAL DEV)
-const API_BASE = import.meta.env.VITE_API_URL || 'https://payment-tracker-backend-cjct.onrender.com';
+// In local development or inside Docker container, all requests go through relative /api proxy
+const API_BASE = import.meta.env.VITE_API_URL || '/api';
 
 async function request(path, options = {}) {
-  //const url = `/api${path}`
   const url = `${API_BASE}${path}`
   const res = await fetch(url, {
+    credentials: 'include',
     headers: { 'Content-Type': 'application/json', ...options.headers },
     ...options,
   })
+
   if (!res.ok) {
-    const text = await res.text()
-    throw new Error(text || `HTTP ${res.status}`)
+    let errorMessage = `HTTP ${res.status}`;
+    try {
+      const data = await res.json();
+      if (data && data.error) errorMessage = data.error;
+    } catch (e) {
+      const text = await res.text();
+      if (text) errorMessage = text;
+    }
+    const error = new Error(errorMessage);
+    error.status = res.status;
+    throw error;
   }
   if (res.status === 204) return null
   return res.json()
+}
+
+// ── Authentication ────────────────────────────────────────────────────────────
+
+export function registerUser(data) {
+  return request('/auth/register', { method: 'POST', body: JSON.stringify(data) })
+}
+
+export function loginUser(data) {
+  return request('/auth/login', { method: 'POST', body: JSON.stringify(data) })
+}
+
+export function logoutUser() {
+  return request('/auth/logout', { method: 'POST' })
+}
+
+export function getMe() {
+  return request('/auth/me')
+}
+
+export function changePassword(data) {
+  return request('/auth/change-password', { method: 'PUT', body: JSON.stringify(data) })
 }
 
 // ── Customers ────────────────────────────────────────────────────────────────
@@ -45,15 +76,16 @@ export function getServices() {
   return request('/services')
 }
 
+export function createService(data) {
+  return request('/services', { method: 'POST', body: JSON.stringify(data) })
+}
+
 export function updateService(id, data) {
   return request(`/services/${id}`, { method: 'PUT', body: JSON.stringify(data) })
 }
 
 // ── Transactions ──────────────────────────────────────────────────────────────
 
-/**
- * @param {{ status?: string, customer_id?: number|string }} params
- */
 export function getTransactions(params = {}) {
   const qs = new URLSearchParams()
   if (params.status && params.status !== 'all') qs.set('status', params.status)
@@ -74,10 +106,6 @@ export function deleteTransaction(id) {
   return request(`/transactions/${id}`, { method: 'DELETE' })
 }
 
-/**
- * @param {number|string} id
- * @param {'cash'|'bank_transfer'|'online'} payment_mode
- */
 export function markPaid(id, payment_mode) {
   return request(`/transactions/${id}/mark-paid`, {
     method: 'PUT',
@@ -85,37 +113,21 @@ export function markPaid(id, payment_mode) {
   })
 }
 
-// ── Bulk Import ───────────────────────────────────────────────────────────────
+// ── Bulk Import & Charge ──────────────────────────────────────────────────────
 
-/**
- * Import transactions from parsed CSV rows.
- * @param {{ rows: { customer_name, service_name, amount, due_date }[] }} data
- */
 export function bulkImport(data) {
   return request('/transactions/bulk-import', { method: 'POST', body: JSON.stringify(data) })
 }
 
-// ── Bulk Charge ───────────────────────────────────────────────────────────────
-
-/**
- * Create one transaction per customer for the same service/amount/due_date.
- * @param {{ customer_ids: number[], service_id: number, amount: number, due_date: string }} data
- */
 export function bulkCharge(data) {
   return request('/bulk-charge', { method: 'POST', body: JSON.stringify(data) })
 }
 
-// ── Export / Backup ───────────────────────────────────────────────────────────
+// ── Export & Reports ──────────────────────────────────────────────────────────
 
-/**
- * Returns the full backup payload (customers + services + transactions).
- * Download is handled client-side by converting to CSV or JSON.
- */
 export function exportBackup() {
   return request('/export')
 }
-
-// ── Reports ───────────────────────────────────────────────────────────────────
 
 export function getOverdue() {
   return request('/reports/overdue')

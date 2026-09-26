@@ -1,19 +1,22 @@
 import { useEffect, useState, useCallback } from 'react'
-import { getServices, updateService } from '../api.js'
+import { getServices, updateService, createService } from '../api.js'
 import { formatCurrency, capitalise } from '../utils.js'
 import PageHeader from '../components/PageHeader.jsx'
 import Modal from '../components/Modal.jsx'
 import { LoadingSpinner, ErrorMessage } from '../components/Feedback.jsx'
+import { useAuth } from '../context/AuthContext.jsx'
 
 const BILLING_CYCLES = ['monthly', 'quarterly', 'half-yearly', 'yearly', 'one-time']
 
 export default function Services() {
+  const { refreshMe } = useAuth()
   const [services, setServices] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
 
-  // Edit modal
-  const [editService, setEditService] = useState(null)  // the service being edited
+  // Edit / Add modal
+  const [isAdding, setIsAdding] = useState(false)
+  const [editService, setEditService] = useState(null)
   const [form, setForm] = useState({})
   const [saving, setSaving] = useState(false)
   const [formError, setFormError] = useState(null)
@@ -23,16 +26,30 @@ export default function Services() {
     setError(null)
     try {
       setServices(await getServices())
+      await refreshMe()
     } catch (err) {
       setError(err.message)
     } finally {
       setLoading(false)
     }
-  }, [])
+  }, [refreshMe])
 
   useEffect(() => { load() }, [load])
 
+  function openAdd() {
+    setIsAdding(true)
+    setEditService(null)
+    setForm({
+      name: '',
+      default_amount: 0,
+      billing_cycle: 'monthly',
+      is_active: true,
+    })
+    setFormError(null)
+  }
+
   function openEdit(svc) {
+    setIsAdding(false)
     setEditService(svc)
     setForm({
       name: svc.name,
@@ -43,7 +60,8 @@ export default function Services() {
     setFormError(null)
   }
 
-  function closeEdit() {
+  function closeModal() {
+    setIsAdding(false)
     setEditService(null)
     setFormError(null)
   }
@@ -63,13 +81,21 @@ export default function Services() {
     setSaving(true)
     setFormError(null)
     try {
-      await updateService(editService.id, {
-        name: form.name.trim(),
-        default_amount: Number(form.default_amount),
-        billing_cycle: form.billing_cycle,
-        is_active: form.is_active,
-      })
-      closeEdit()
+      if (isAdding) {
+        await createService({
+          name: form.name.trim(),
+          default_amount: Number(form.default_amount),
+          billing_cycle: form.billing_cycle,
+        })
+      } else {
+        await updateService(editService.id, {
+          name: form.name.trim(),
+          default_amount: Number(form.default_amount),
+          billing_cycle: form.billing_cycle,
+          is_active: form.is_active,
+        })
+      }
+      closeModal()
       load()
     } catch (err) {
       setFormError(err.message)
@@ -80,10 +106,15 @@ export default function Services() {
 
   return (
     <div>
-      <PageHeader
-        title="Services"
-        subtitle="Configure your subscription services — name, price, and billing cycle. Click Edit on any row to update."
-      />
+      <div className="flex items-center justify-between mb-4">
+        <PageHeader
+          title="Services"
+          subtitle="Configure your subscription services (Max 10 services allowed per user)."
+        />
+        <button className="btn-primary flex items-center gap-2 text-sm" onClick={openAdd}>
+          <span>+ Add Service</span>
+        </button>
+      </div>
 
       {loading && <LoadingSpinner />}
       {error && <ErrorMessage message={error} />}
@@ -128,8 +159,8 @@ export default function Services() {
         </div>
       )}
 
-      {/* Edit Service Modal */}
-      <Modal open={!!editService} onClose={closeEdit} title={`Edit Service — ${editService?.name ?? ''}`}>
+      {/* Edit / Add Service Modal */}
+      <Modal open={isAdding || !!editService} onClose={closeModal} title={isAdding ? 'Add New Service' : `Edit Service — ${editService?.name ?? ''}`}>
         <form onSubmit={handleSave} className="space-y-4">
           <div>
             <label className="label" htmlFor="svc-name">
@@ -141,7 +172,7 @@ export default function Services() {
               className="input"
               value={form.name ?? ''}
               onChange={handleChange}
-              placeholder="e.g. Internet Plan"
+              placeholder="e.g. Broadband Subscription"
               autoFocus
             />
           </div>
@@ -160,9 +191,6 @@ export default function Services() {
               onChange={handleChange}
               placeholder="500"
             />
-            <p className="mt-1 text-xs text-gray-400">
-              This amount auto-fills when adding a transaction for this service. You can still override it per transaction.
-            </p>
           </div>
 
           <div>
@@ -180,28 +208,30 @@ export default function Services() {
             </select>
           </div>
 
-          <div className="flex items-center gap-2">
-            <input
-              id="svc-active"
-              name="is_active"
-              type="checkbox"
-              className="h-4 w-4 rounded border-gray-300 text-accent-600 focus:ring-accent-500"
-              checked={form.is_active ?? true}
-              onChange={handleChange}
-            />
-            <label htmlFor="svc-active" className="text-sm text-gray-700">
-              Active (visible when adding transactions)
-            </label>
-          </div>
+          {!isAdding && (
+            <div className="flex items-center gap-2">
+              <input
+                id="svc-active"
+                name="is_active"
+                type="checkbox"
+                className="h-4 w-4 rounded border-gray-300 text-accent-600 focus:ring-accent-500"
+                checked={form.is_active ?? true}
+                onChange={handleChange}
+              />
+              <label htmlFor="svc-active" className="text-sm text-gray-700">
+                Active (visible when adding transactions)
+              </label>
+            </div>
+          )}
 
-          {formError && <p className="text-sm text-red-600">{formError}</p>}
+          {formError && <p className="text-sm text-red-600 font-medium">{formError}</p>}
 
           <div className="flex justify-end gap-2 pt-1">
-            <button type="button" className="btn-secondary" onClick={closeEdit}>
+            <button type="button" className="btn-secondary" onClick={closeModal}>
               Cancel
             </button>
             <button type="submit" className="btn-primary" disabled={saving}>
-              {saving ? 'Saving…' : 'Save Changes'}
+              {saving ? 'Saving…' : (isAdding ? 'Create Service' : 'Save Changes')}
             </button>
           </div>
         </form>

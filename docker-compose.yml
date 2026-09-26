@@ -21,6 +21,8 @@ services:
       DB_PASSWORD: ${DB_PASSWORD:-postgres}
       DB_NAME: ${DB_NAME:-payment_tracker}
       PORT: 4000
+    ports:
+      - "4000:4000"
     depends_on:
       - db
     # Not exposed to host — frontend nginx proxies /api to this container
