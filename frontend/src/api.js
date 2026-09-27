@@ -1,8 +1,17 @@
-// In local development or inside Docker container, all requests go through relative /api proxy
-const API_BASE = import.meta.env.VITE_API_URL || '/api';
+// Clean base URL: strip trailing slashes to ensure consistent path joins
+const getApiBase = () => {
+  const envUrl = import.meta.env.VITE_API_URL;
+  if (envUrl && envUrl.trim()) {
+    return envUrl.trim().replace(/\/+$/, '');
+  }
+  return '/api';
+};
+
+const API_BASE = getApiBase();
 
 async function request(path, options = {}) {
-  const url = `${API_BASE}${path}`
+  const cleanPath = path.startsWith('/') ? path : `/${path}`;
+  const url = `${API_BASE}${cleanPath}`;
   const res = await fetch(url, {
     credentials: 'include',
     headers: { 'Content-Type': 'application/json', ...options.headers },
@@ -12,11 +21,18 @@ async function request(path, options = {}) {
   if (!res.ok) {
     let errorMessage = `HTTP ${res.status}`;
     try {
-      const data = await res.json();
-      if (data && data.error) errorMessage = data.error;
-    } catch (e) {
       const text = await res.text();
-      if (text) errorMessage = text;
+      if (text) {
+        try {
+          const data = JSON.parse(text);
+          if (data && data.error) errorMessage = data.error;
+          else errorMessage = text;
+        } catch (_) {
+          errorMessage = text;
+        }
+      }
+    } catch (_) {
+      // Ignore text read error fallback
     }
     const error = new Error(errorMessage);
     error.status = res.status;
